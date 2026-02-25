@@ -241,13 +241,26 @@ router.post("/", async (req, res) => {
         });
       }
 
-      order.returnRequested = true;
+      try {
 
-      await order.save();
+        order.returnRequested = true;
 
-      return res.json({
-        response: "Your return request has been successfully registered."
-      });
+        await order.save();
+
+        return res.json({
+          response: "Your return request has been successfully registered."
+        });
+
+      }
+      catch (error) {
+
+        console.log("Return Error:", error);
+
+        return res.json({
+          response: "Return request failed."
+        });
+
+      }
 
     }
 
