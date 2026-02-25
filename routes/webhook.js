@@ -14,34 +14,60 @@ router.post("/", async (req, res) => {
       return res.status(403).send("Unauthorized");
     }
 
-    console.log("Incoming request:", req.body);
+    console.log("Full Incoming Body:", JSON.stringify(req.body, null, 2));
 
-    // Detect function name from Retell
-    let tool = req.body.tool || req.body.name;
+    // Detect tool name
+    let tool = req.body.tool || req.body.name || (req.body.call && req.body.call.tool_name);
 
-    // Retell sends parameters directly
-    let data = req.body.data || req.body;
+    // Extract data/parameters robustly
+    let data = {};
+
+    if (req.body.data) data = req.body.data;
+    else if (req.body.args) data = req.body.args;
+    else if (req.body.parameters) data = req.body.parameters;
+    else if (req.body.arguments) data = req.body.arguments;
+    else if (req.body.call && req.body.call.arguments) data = req.body.call.arguments;
+    else data = req.body;
+
+    console.log(`Detected tool: ${tool}`);
+    console.log("Extracted data:", data);
 
     // -------------------------
     // ORDER STATUS
     // -------------------------
 
     if (tool === "get_order_status") {
+      let orderId =
+        data.order_id ||
+        data.orderId ||
+        data.order ||
+        data.id ||
+        (typeof data === "string" ? data : null);
+
+      if (!orderId) {
+        return res.json({ response: "Please provide an order ID." });
+      }
+
+      // Normalize Case and remove spaces (handles voice transcription nuances)
+      const cleanedOrderId = orderId.toString().replace(/\s+/g, '').toUpperCase();
+      console.log(`Searching for Order ID: original="${orderId}", cleaned="${cleanedOrderId}"`);
 
       const order = await Order.findOne({
-        orderId: data.order_id
+        $or: [
+          { orderId: cleanedOrderId },
+          { orderId: orderId } // fallback to original
+        ]
       });
 
       if (!order) {
         return res.json({
-          response: "Order not found."
+          response: `I couldn't find an order with the ID ${orderId}. Could you please double-check it?`
         });
       }
 
       return res.json({
         response: `Your order is ${order.status} and will arrive by ${order.eta}.`
       });
-
     }
 
     // -------------------------
@@ -49,25 +75,29 @@ router.post("/", async (req, res) => {
     // -------------------------
 
     if (tool === "cancel_order") {
+      let orderId =
+        data.order_id ||
+        data.orderId ||
+        data.order ||
+        data.id ||
+        (typeof data === "string" ? data : null);
+      if (!orderId) return res.json({ response: "Please provide an order ID." });
+
+      const cleanedOrderId = orderId.toString().replace(/\s+/g, '').toUpperCase();
+      console.log(`Cancelling Order ID: original="${orderId}", cleaned="${cleanedOrderId}"`);
 
       const order = await Order.findOne({
-        orderId: data.order_id
+        $or: [{ orderId: cleanedOrderId }, { orderId: orderId }]
       });
 
       if (!order) {
-        return res.json({
-          response: "Order not found."
-        });
+        return res.json({ response: `I couldn't find an order with the ID ${orderId}.` });
       }
 
       order.status = "Cancelled";
-
       await order.save();
 
-      return res.json({
-        response: "Your order has been successfully cancelled."
-      });
-
+      return res.json({ response: "Your order has been successfully cancelled." });
     }
 
     // -------------------------
@@ -75,21 +105,26 @@ router.post("/", async (req, res) => {
     // -------------------------
 
     if (tool === "get_refund_status") {
+      let orderId =
+        data.order_id ||
+        data.orderId ||
+        data.order ||
+        data.id ||
+        (typeof data === "string" ? data : null);
+      if (!orderId) return res.json({ response: "Please provide an order ID." });
+
+      const cleanedOrderId = orderId.toString().replace(/\s+/g, '').toUpperCase();
+      console.log(`Refund Check for Order ID: original="${orderId}", cleaned="${cleanedOrderId}"`);
 
       const order = await Order.findOne({
-        orderId: data.order_id
+        $or: [{ orderId: cleanedOrderId }, { orderId: orderId }]
       });
 
       if (!order) {
-        return res.json({
-          response: "Order not found."
-        });
+        return res.json({ response: `I couldn't find an order with the ID ${orderId}.` });
       }
 
-      return res.json({
-        response: `Refund status is ${order.refundStatus || "Not initiated"}.`
-      });
-
+      return res.json({ response: `Refund status for order ${orderId} is ${order.refundStatus || "Not initiated"}.` });
     }
 
     // -------------------------
@@ -97,24 +132,30 @@ router.post("/", async (req, res) => {
     // -------------------------
 
     if (tool === "check_inventory") {
+      let productId =
+        data.product_id ||
+        data.productId ||
+        data.product ||
+        data.id ||
+        (typeof data === "string" ? data : null);
+      if (!productId) return res.json({ response: "Please provide a product ID." });
+
+      const cleanedProductId = productId.toString().replace(/\s+/g, '').toUpperCase();
+      console.log(`Checking Inventory for Product ID: original="${productId}", cleaned="${cleanedProductId}"`);
 
       const product = await Inventory.findOne({
-        productId: data.product_id
+        $or: [{ productId: cleanedProductId }, { productId: productId }]
       });
 
       if (!product) {
-        return res.json({
-          response: "Product not found."
-        });
+        return res.json({ response: `I couldn't find a product with the ID ${productId}.` });
       }
 
       return res.json({
-        response:
-          product.stock > 0
-            ? `${product.productName} is available in stock.`
-            : `${product.productName} is currently out of stock.`
+        response: product.stock > 0
+          ? `${product.productName} is available in stock. We have ${product.stock} units left.`
+          : `${product.productName} is currently out of stock.`
       });
-
     }
 
     // -------------------------
