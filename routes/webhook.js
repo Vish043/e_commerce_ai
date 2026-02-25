@@ -231,21 +231,19 @@ router.post("/", async (req, res) => {
       const cleanedOrderId =
         orderId.toString().replace(/\s+/g, '').toUpperCase();
 
-      const order = await Order.findOne({
-        orderId: cleanedOrderId
-      });
-
-      if (!order) {
-        return res.json({
-          response: `I couldn't find order ${orderId}.`
-        });
-      }
-
       try {
 
-        order.returnRequested = true;
+        const order = await Order.findOneAndUpdate(
+          { orderId: cleanedOrderId },
+          { returnRequested: true },
+          { new: true }
+        );
 
-        await order.save();
+        if (!order) {
+          return res.json({
+            response: `I couldn't find order ${orderId}.`
+          });
+        }
 
         return res.json({
           response: "Your return request has been successfully registered."
