@@ -177,6 +177,150 @@ router.post("/", async (req, res) => {
     }
 
     // -------------------------
+    // TRACKING STATUS
+    // -------------------------
+
+    if (tool === "get_tracking_status") {
+
+      let trackingId =
+        data.tracking_id ||
+        data.trackingId ||
+        data.id;
+
+      if (!trackingId) {
+        return res.json({
+          response: "Please provide a tracking ID."
+        });
+      }
+
+      const cleanedTrackingId =
+        trackingId.toString().replace(/\s+/g, '').toUpperCase();
+
+      const order = await Order.findOne({
+        trackingId: cleanedTrackingId
+      });
+
+      if (!order) {
+        return res.json({
+          response: `I couldn't find any shipment with tracking ID ${trackingId}.`
+        });
+      }
+
+      return res.json({
+        response: `Your shipment is ${order.status} and will arrive by ${order.eta}.`
+      });
+
+    }
+
+    // -------------------------
+    // RETURN REQUEST
+    // -------------------------
+
+    if (tool === "request_return") {
+
+      let orderId =
+        data.order_id ||
+        data.orderId;
+
+      if (!orderId) {
+        return res.json({
+          response: "Please provide an order ID."
+        });
+      }
+
+      const cleanedOrderId =
+        orderId.toString().replace(/\s+/g, '').toUpperCase();
+
+      const order = await Order.findOne({
+        orderId: cleanedOrderId
+      });
+
+      if (!order) {
+        return res.json({
+          response: `I couldn't find order ${orderId}.`
+        });
+      }
+
+      order.returnRequested = true;
+
+      await order.save();
+
+      return res.json({
+        response: "Your return request has been successfully registered."
+      });
+
+    }
+
+    // -------------------------
+    // ORDERS BY PHONE
+    // -------------------------
+
+    if (tool === "get_orders_by_phone") {
+
+      let phone = data.phone;
+
+      if (!phone) {
+        return res.json({
+          response: "Please provide your phone number."
+        });
+      }
+
+      const orders = await Order.find({
+        customerPhone: phone
+      });
+
+      if (orders.length === 0) {
+        return res.json({
+          response: "No orders found for this phone number."
+        });
+      }
+
+      const orderList =
+        orders.map(o => o.orderId).join(", ");
+
+      return res.json({
+        response: `You have the following orders: ${orderList}`
+      });
+
+    }
+
+    // -------------------------
+    // ORDER DETAILS
+    // -------------------------
+
+    if (tool === "get_order_details") {
+
+      let orderId =
+        data.order_id ||
+        data.orderId;
+
+      if (!orderId) {
+        return res.json({
+          response: "Please provide an order ID."
+        });
+      }
+
+      const cleanedOrderId =
+        orderId.toString().replace(/\s+/g, '').toUpperCase();
+
+      const order = await Order.findOne({
+        orderId: cleanedOrderId
+      });
+
+      if (!order) {
+        return res.json({
+          response: `I couldn't find order ${orderId}.`
+        });
+      }
+
+      return res.json({
+        response:
+          `Order ${order.orderId} status is ${order.status}. Total amount is ${order.amount}. Delivery date is ${order.eta}.`
+      });
+
+    }
+
+    // -------------------------
     // UNKNOWN REQUEST
     // -------------------------
 
