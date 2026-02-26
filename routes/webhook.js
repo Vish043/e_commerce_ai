@@ -218,7 +218,16 @@ router.post("/", async (req, res) => {
 
     if (tool === "request_return") {
 
-      let orderId = data.order_id || data.orderId;
+      let orderId =
+        data.order_id ||
+        data.orderId;
+
+      if (!orderId) {
+        return res.json({
+          success: false,
+          message: "Order ID missing"
+        });
+      }
 
       const cleanedOrderId =
         orderId.toString().replace(/\s+/g, '').toUpperCase();
@@ -241,7 +250,8 @@ router.post("/", async (req, res) => {
 
       return res.json({
         success: true,
-        orderId: order.orderId,
+        order_id: order.orderId,
+        return_requested: true,
         message: "Return request registered successfully"
       });
 
