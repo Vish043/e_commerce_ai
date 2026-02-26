@@ -189,25 +189,36 @@ router.post("/", async (req, res) => {
 
       if (!trackingId) {
         return res.json({
+          success: false,
           response: "Please provide a tracking ID."
         });
       }
 
       const cleanedTrackingId =
-        trackingId.toString().replace(/\s+/g, '').toUpperCase();
+        trackingId.toString()
+          .replace(/\s+/g, '')
+          .toUpperCase();
+
+      console.log("Tracking search:", cleanedTrackingId);
 
       const order = await Order.findOne({
-        trackingId: cleanedTrackingId
+        trackingId: new RegExp(
+          "^\\s*" + cleanedTrackingId + "\\s*$", "i"
+        )
       });
 
       if (!order) {
         return res.json({
-          response: `I couldn't find any shipment with tracking ID ${trackingId}.`
+          success: false,
+          response:
+            `I couldn't find tracking ID ${cleanedTrackingId}.`
         });
       }
 
       return res.json({
-        response: `Your shipment is ${order.status} and will arrive by ${order.eta}.`
+        success: true,
+        response:
+          `Your shipment is ${order.status} and will arrive by ${order.eta}.`
       });
 
     }
