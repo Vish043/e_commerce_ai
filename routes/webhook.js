@@ -218,47 +218,32 @@ router.post("/", async (req, res) => {
 
     if (tool === "request_return") {
 
-      let orderId =
-        data.order_id ||
-        data.orderId;
-
-      if (!orderId) {
-        return res.json({
-          response: "Please provide an order ID."
-        });
-      }
+      let orderId = data.order_id || data.orderId;
 
       const cleanedOrderId =
         orderId.toString().replace(/\s+/g, '').toUpperCase();
 
-      try {
+      const order = await Order.findOne({
+        orderId: new RegExp("^" + cleanedOrderId + "$", "i")
+      });
 
-        const order = await Order.findOneAndUpdate(
-          { orderId: cleanedOrderId },
-          { returnRequested: true },
-          { new: true }
-        );
-
-        if (!order) {
-          return res.json({
-            response: `I couldn't find order ${orderId}.`
-          });
-        }
-
+      if (!order) {
         return res.json({
-          response: "Your return request has been successfully registered."
+          success: false,
+          message: "Order not found"
         });
-
       }
-      catch (error) {
 
-        console.log("Return Error:", error);
+      await Order.findOneAndUpdate(
+        { orderId: order.orderId },
+        { returnRequested: true }
+      );
 
-        return res.json({
-          response: "Return request failed."
-        });
-
-      }
+      return res.json({
+        success: true,
+        orderId: order.orderId,
+        message: "Return request registered successfully"
+      });
 
     }
 
